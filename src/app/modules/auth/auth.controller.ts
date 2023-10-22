@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import httpStatus from 'http-status';
+import config from '../../../config';
 import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
-import { IUserLoginResonse } from '../user/user.interface';
 import { AuthService } from './auth.service';
 
 // Signup User
@@ -16,14 +16,29 @@ const signupUser = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// Login User - Controller
 const loginUser = catchAsync(async (req: Request, res: Response) => {
   const result = await AuthService.loginUser(req.body);
 
-  sendResponse<IUserLoginResonse>(res, {
-    success: true,
+  const { refreshToken, ...others } = result;
+
+  // set refreshToken into cookie
+  const cookieOptions = {
+    secure: config.env === 'production',
+    httpOnly: true,
+  };
+  res.cookie('refreshToken', refreshToken, cookieOptions);
+
+  // deleting refreshToken from user after setting into cookie
+  if ('refreshToken' in result) {
+    delete result.refreshToken;
+  }
+
+  sendResponse(res, {
     statusCode: httpStatus.OK,
+    success: true,
     message: 'User logged in successfully!',
-    token: result,
+    data: others,
   });
 });
 
